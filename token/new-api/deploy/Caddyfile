@@ -1,0 +1,4 @@
+newapi.jdhsf.top {
+	reverse_proxy shim:3001
+	encode zstd gzip
+}

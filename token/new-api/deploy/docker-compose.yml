@@ -1,0 +1,56 @@
+version: "3.8"
+
+# new-api SaaS 上线编排：Caddy(443) → shim(3001, 身份伪装) → new-api(3000)
+# 数据卷：new-api-data（SQLite）、caddy-data（证书）
+
+services:
+  new-api:
+    image: calciumion/new-api:latest
+    container_name: new-api
+    restart: always
+    environment:
+      - TZ=Asia/Shanghai
+    volumes:
+      - new-api-data:/data
+    networks:
+      - saas
+
+  shim:
+    image: python:3.13-slim
+    container_name: codex-shim
+    restart: always
+    working_dir: /app
+    volumes:
+      - ./codex_shim.py:/app/codex_shim.py:ro
+    command: ["python", "/app/codex_shim.py"]
+    environment:
+      - TZ=Asia/Shanghai
+      - UPSTREAM_HOST=new-api
+      - UPSTREAM_PORT=3000
+    depends_on:
+      - new-api
+    networks:
+      - saas
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: caddy
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    depends_on:
+      - shim
+    networks:
+      - saas
+
+volumes:
+  new-api-data:
+  caddy-data:
+
+networks:
+  saas:
+    driver: bridge
